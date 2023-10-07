@@ -6,29 +6,20 @@ import GameWord from './components/GameWord.vue';
 import GamePopup from './components/GamePopup.vue';
 import GameNotification from './components/GameNotification.vue';
 import { computed, ref, watch } from 'vue';
-import axios from 'axios'
+import { useRandomWord } from './composables/useRandomWord'
+import { useLetters } from './composables/useLetters'
+import { useNotification } from './composables/useNotification'
 
-const word = ref('')
-const getRandomWord = async () => {
-  try {
-    const { data } = await axios<{ FirstName: string }>(
-      'http://api.randomdatatools.ru/?unescaped=false&params=FirstName'
-    )
-    word.value = data.FirstName.toLowerCase()
-  } catch (err) {
-    console.log(err)
-    word.value = ''
-  }
-}
-getRandomWord()
-
-const letters = ref<string[]>([])
-const correctLetters = computed(() => letters.value.filter(x => word.value.includes(x)))
-const wrongLetters = computed(() => letters.value.filter(x => !word.value.includes(x)))
-const isLose = computed(() => wrongLetters.value.length === 6)
-const isWin = computed(() => [...word.value].every((x) => correctLetters.value.includes(x)))
-const notification = ref<InstanceType<typeof GameNotification> | null>(null)
+const { word, getRandomWord } = useRandomWord()
+const { letters, correctLetters, wrongLetters, isLose, isWin, addLetter, resetLetters } = useLetters(word)
+const { notification, showNotification } = useNotification()
 const popup = ref<InstanceType<typeof GamePopup> | null>(null)
+
+const restart = async () => {
+  await getRandomWord()
+  resetLetters()
+  popup.value?.close()
+}
 
 watch(wrongLetters, () => {
   if (isLose.value) {
@@ -48,21 +39,12 @@ window.addEventListener('keydown', ({ key }) => {
   }
 
   if (letters.value.includes(key)) {
-    notification.value?.open()
-    setTimeout(() => notification.value?.close(), 2000)
+    showNotification()
     return
   }
 
-  if (/[a-яА-ЯёЁ]/.test(key)) {
-    letters.value.push(key.toLowerCase())
-  }
+  addLetter(key)
 })
-
-const restart = async () => {
-  await getRandomWord()
-  letters.value = []
-  popup.value?.close()
-}
 </script>
 
 <template>
